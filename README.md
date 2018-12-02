@@ -11,11 +11,12 @@
 
 
 # Optimize
-- Fewest consecutive hours for an anchor
+- Fewest consecutive hours for an anchor - TO-DO: Not only true
 - Shortest end to end time
 - Everyone starts by 12
 - TO-DO: Anchors prefer certain shows: opening bell Kristen Tim, between Nora Baker, closing Brad hope
 - TO-DO: Hits w 1 hr in between full shows is hard
+- TO-DO: Certain adjacent blocks containing same anchors
 
 Other TO-DOs:
 - Distinguish between anchor and hit for each block

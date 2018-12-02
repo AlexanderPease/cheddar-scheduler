@@ -6,13 +6,13 @@ MAX_CONSECUTIVE_BLOCKS_PER_ANCHOR = 3
 MAX_NUMBER_BLOCKS_PER_ANCHOR = 4
 
 # Optimization, values 0<x<=100
-WEIGHT_CONSECUTIVE_BLOCKS = 50
+WEIGHT_CONSECUTIVE_BLOCKS = 20
 WEIGHT_NUMBER_BLOCKS = 50
-WEIGHT_START_TO_END_BLOCKS = 50
+WEIGHT_START_TO_END_BLOCKS = 40
 WEIGHT_STARTING_TIME = 50
 PENALIZE_LATER_THAN = 12  # I.e. later than noon
 
-MAX_ITERATIONS_DEFAULT = 100 
+MAX_ITERATIONS_DEFAULT = 100
 
 
 class Anchor(object):
@@ -167,7 +167,7 @@ class Block(object):
         self.num_anchors = kwargs.get('num_anchors', ANCHORS_PER_BLOCK_DEFAULT)
 
         # Default allow any anchor
-        self.matching_anchors = kwargs.get('matching_anchors', ANCHORS_FULLTIME)
+        self.available_anchors = kwargs.get('available_anchors', ANCHORS_FULLTIME)
 
         # Optionally set a list of specific anchors
         self.anchors = set(kwargs.get('anchors', []))
@@ -192,7 +192,7 @@ class Block(object):
         """Randomly fills block with matching anchors."""
         while not self.full:
             self.anchors.add(
-                self.matching_anchors[ randint(0, len(self.matching_anchors)-1) ]
+                self.available_anchors[ randint(0, len(self.available_anchors)-1) ]
             )
         return True
 
@@ -233,7 +233,15 @@ class ScheduleOptimizer(object):
 
 if __name__ == "__main__":
     
-    blocks = [Block(hour=i) for i in range(1, 10)]
+    blocks = [
+        Block(hour=9),
+        Block(hour=11, available_anchors=[HOPE, BRAD, TIM, KRISTEN, BAKER]),
+        Block(hour=12, available_anchors=[BRAD, HOPE, KRISTEN, TIM]),
+        Block(hour=2, available_anchors=[NORA, BRAD, HOPE, KRISTEN, TIM]),
+        Block(hour=3, available_anchors=[NORA, BRAD, HOPE, KRISTEN, TIM]),
+        Block(hour=4, available_anchors=[NORA, BRAD, HOPE, KRISTEN, TIM]),
+        Block(hour=5, anchors= [NORA]),
+    ]
     day = Schedule(blocks=blocks)
 
 
@@ -241,4 +249,7 @@ if __name__ == "__main__":
     print(f'Generated {len(s.schedules)} schedules from {s.max_iterations} iterations')
     print('Best Schedule:')
     print(s.best_schedule)
+
+    print('Other Schedules')
+    print(s.schedules[1:5])
     
