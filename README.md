@@ -1,4 +1,8 @@
-# Hard requirements
+A generalizable scheduling algorithm. Takes a brute force iteration approach and then determines ideal schedule via value-weightd optimizations.
+
+Implemented for scheduling Cheddar's on-screen talent.
+
+## Hard requirements
 - Available anchors vary each day
 - Two anchors per show
 - Min 1 hr blocks, except specialty
@@ -10,7 +14,7 @@
 - Can’t do hit and show at same time
 
 
-# Optimize
+## Optimizations
 - Fewest consecutive hours for an anchor - TO-DO: Not only true
 - Shortest end to end time
 - Everyone starts by 12
