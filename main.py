@@ -28,9 +28,10 @@ ANCHORS_FULLTIME = [NORA, BRAD, BAKER, HOPE, KRISTEN, TIM]
 ANCHORS_PER_BLOCK_DEFAULT = 2
 
 
-class Day(object):
-    def __init__(self):
+class Schedule(object):
+    def __init__(self, **kwargs):
         self.blocks = []
+        self.available_anchors = kwargs.get('available_anchors', ANCHORS_FULLTIME)
 
     def __repr__(self):
         output = ''
@@ -47,7 +48,7 @@ class Day(object):
             anchor = an Anchor() object
         """
 
-        anchors = kwargs.get('anchor', ANCHORS_FULLTIME)
+        anchors = kwargs.get('anchor', self.available_anchors)
         blocks_max = 0
         
         for anchor in anchors:
@@ -73,7 +74,7 @@ class Day(object):
             anchor = an Anchor() object
         """
 
-        anchors = kwargs.get('anchor', ANCHORS_FULLTIME)
+        anchors = kwargs.get('anchor', self.available_anchors)
         consecutive_blocks_max = 0
         
         for anchor in anchors:
@@ -104,7 +105,7 @@ class Day(object):
     @property
     def value(self):
         """Returns the optimization value of this schedule."""
-        return 10
+        # Fewest consecutive hours per anchor
 
 
 
@@ -150,7 +151,7 @@ class Block(object):
 
 class ScheduleOptimizer(object):
     def __init__(self, schedule, **kwargs):
-        self.base_schedule = schedule  # The Day to be scheduled
+        self.base_schedule = schedule  # The day to be scheduled
         self.possible_schedules = set()
         
         # How many iterations of scheduling to attempt
@@ -175,7 +176,7 @@ class ScheduleOptimizer(object):
 
 
 if __name__ == "__main__":
-    day = Day()
+    day = Schedule()
     for i in range(1, 10):
         day.blocks.append(
             Block(
