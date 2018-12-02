@@ -5,8 +5,14 @@ from random import randint
 MAX_CONSECUTIVE_BLOCKS_PER_ANCHOR = 3
 MAX_NUMBER_BLOCKS_PER_ANCHOR = 4
 
-# Optimization
-MAX_ITERATIONS_DEFAULT = 100
+# Optimization, values 0<x<=100
+WEIGHT_CONSECUTIVE_BLOCKS = 50
+WEIGHT_NUMBER_BLOCKS = 50
+WEIGHT_START_TO_END_BLOCKS = 50
+WEIGHT_STARTING_TIME = 50
+PENALIZE_LATER_THAN = 12  # I.e. later than noon
+
+MAX_ITERATIONS_DEFAULT = 100 
 
 
 class Anchor(object):
@@ -29,26 +35,33 @@ ANCHORS_PER_BLOCK_DEFAULT = 2
 
 
 class Schedule(object):
-    def __init__(self, **kwargs):
-        self.blocks = []
+    def __init__(self, blocks, **kwargs):
+        self.blocks = blocks # must be an ordered list of Blocks
         self.available_anchors = kwargs.get('available_anchors', ANCHORS_FULLTIME)
 
     def __repr__(self):
         output = ''
         for block in self.blocks:
             output += str(block) + '\n'
-        output += '\n'
         return output
+
+    @property
+    def complete(self):
+        """Returns True if schedule is complete."""
+        for block in self.blocks:
+            if not block.full:
+                return False
+        return True
 
     def number_blocks(self, **kwargs):
         """
         Returns number of blocks for an anchor, or the max of all anchors.
 
         kwargs:
-            anchor = an Anchor() object
+            anchors = a list of Anchor() object
         """
 
-        anchors = kwargs.get('anchor', self.available_anchors)
+        anchors = kwargs.get('anchors', self.available_anchors)
         blocks_max = 0
         
         for anchor in anchors:
@@ -71,10 +84,10 @@ class Schedule(object):
         Returns consecutive blocks for an anchor, or the max of all anchors.
 
         kwargs:
-            anchor = an Anchor() object
+            anchors = a list of Anchor() objects
         """
 
-        anchors = kwargs.get('anchor', self.available_anchors)
+        anchors = kwargs.get('anchors', self.available_anchors)
         consecutive_blocks_max = 0
         
         for anchor in anchors:
@@ -94,19 +107,54 @@ class Schedule(object):
         """Returns True if this day satisifies maximum number of blocks rule."""
         return self.consecutive_blocks() <= MAX_CONSECUTIVE_BLOCKS_PER_ANCHOR
 
-    @property
-    def complete(self):
-        """Returns True if schedule is complete."""
+
+    def start_block_for(self, anchor):
+        """Returns the first block for anchor."""
         for block in self.blocks:
-            if not block.full:
-                return False
-        return True
+            if anchor in block.anchors:
+                return block
+
+    def end_block_for(self, anchor):
+        """Returns the first block for anchor."""
+        for block in reversed(self.blocks):
+            if anchor in block.anchors:
+                return block
+
+    def start_to_end_blocks(self, **kwargs):
+        """
+        Returns number of blocks from start to end for an anchor, or the max of all anchors.
+
+        kwargs:
+            anchors = a list of Anchor() objects
+        """
+
+        anchors = kwargs.get('anchors', self.available_anchors)
+        blocks_length_max = 0
+        
+        for anchor in anchors:
+            start_block = self.start_block_for(anchor)
+            if start_block:
+                blocks_length = self.end_block_for(anchor).hour - start_block.hour
+                blocks_length_max = max(blocks_length, blocks_length_max)
+        
+        return blocks_length_max
 
     @property
     def value(self):
-        """Returns the optimization value of this schedule."""
-        # Fewest consecutive hours per anchor
+        """Returns the optimization value of this schedule. Lower values are more optimized."""
+        value = 0
 
+        for anchor in self.available_anchors:
+            value += self.number_blocks(anchors=[anchor]) * WEIGHT_NUMBER_BLOCKS
+            value += self.consecutive_blocks(anchors=[anchor]) * WEIGHT_CONSECUTIVE_BLOCKS
+            value += self.start_to_end_blocks(anchors=[anchor]) * WEIGHT_START_TO_END_BLOCKS
+
+            # Weight before noon start time for all anchors
+            start_block = self.start_block_for(anchor)
+            if start_block and start_block.hour > PENALIZE_LATER_THAN:
+                value += (start_block.hour - PENALIZE_LATER_THAN) * WEIGHT_STARTING_TIME
+
+        return value
 
 
 class Block(object):
@@ -152,11 +200,13 @@ class Block(object):
 class ScheduleOptimizer(object):
     def __init__(self, schedule, **kwargs):
         self.base_schedule = schedule  # The day to be scheduled
-        self.possible_schedules = set()
+        self.schedules = []
         
         # How many iterations of scheduling to attempt
         self.max_iterations = kwargs.get('max_iterations', MAX_ITERATIONS_DEFAULT)
         self.fill_schedules()
+
+        self.schedules = sorted(self.schedules, key=lambda x: x.value, reverse=True)
 
     def fill_schedules(self):
         # Calculates max_num unoptimized schedules.
@@ -169,22 +219,26 @@ class ScheduleOptimizer(object):
             [block.random_fill() for block in schedule.blocks]
 
             if schedule.safe_number_blocks and schedule.safe_consecutive_blocks:
-                self.possible_schedules.add(schedule)
+                self.schedules.append(schedule)
 
             iteration += 1
+
+        return True
+
+    @property
+    def best_schedule(self):
+        return self.schedules[0]
 
 
 
 if __name__ == "__main__":
-    day = Schedule()
-    for i in range(1, 10):
-        day.blocks.append(
-            Block(
-                hour=i
-            )
-        )
+    
+    blocks = [Block(hour=i) for i in range(1, 10)]
+    day = Schedule(blocks=blocks)
+
 
     s = ScheduleOptimizer(day)
-    print(len(s.possible_schedules))
-    print(s.possible_schedules)
+    print(f'Generated {len(s.schedules)} schedules from {s.max_iterations} iterations')
+    print('Best Schedule:')
+    print(s.best_schedule)
     
