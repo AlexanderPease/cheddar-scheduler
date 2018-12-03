@@ -1,10 +1,63 @@
+from datetime import timedelta
 from random import randint
+from time import strftime
+
 from constants import (
     MAX_CONSECUTIVE_BLOCKS_PER_ANCHOR, 
     MAX_NUMBER_BLOCKS_PER_ANCHOR,
     ANCHORS_PER_BLOCK_DEFAULT,
     ANCHORS_FULLTIME
 )
+
+
+class Block(object):
+    def __init__(self, start, **kwargs):
+        """
+        A single block of time.
+
+        kwargs - Required
+            start: a datetime object.
+
+        kwargs - Optional
+            length: a timedelta object, defaulst to 1 hour.
+            name: name/description of the block.
+            num_anchors: int number of anchors for this block, default 2.
+            anchors: list of Anchor objects that definitely are working this block.
+            available_anchors: list of Anchor objects that could work this block.
+                Defaults to ANCHORS_FULLTIME.
+        """
+        self.start = start
+        self.length = kwargs.get('length', timedelta(hours=1))
+        self.name = kwargs.get('name')
+        
+        # Default 2 anchors per block
+        self.num_anchors = kwargs.get('num_anchors', ANCHORS_PER_BLOCK_DEFAULT)
+
+        # Default allow any FT anchor
+        self.available_anchors = kwargs.get('available_anchors', ANCHORS_FULLTIME)
+
+        # Optionally set a list of specific anchors
+        self.anchors = set(kwargs.get('anchors', []))
+        if len(self.anchors) > self.num_anchors:
+            raise
+
+    def __repr__(self):
+        return f'Block: {self.name}; Time: {self.start.strftime("%-I %p")}; Anchors: {self.anchors}'
+
+    @property
+    def full(self):
+        if len(self.anchors) > self.num_anchors:
+            raise
+        return len(self.anchors) == self.num_anchors
+    
+    def random_fill(self):
+        """Randomly fills block with matching anchors."""
+        while not self.full:
+            self.anchors.add(
+                self.available_anchors[ randint(0, len(self.available_anchors)-1) ]
+            )
+        return True
+
 
 class Schedule(object):
     def __init__(self, blocks, **kwargs):
@@ -79,72 +132,34 @@ class Schedule(object):
         return self.consecutive_blocks() <= MAX_CONSECUTIVE_BLOCKS_PER_ANCHOR
 
 
-    def start_block_for(self, anchor):
+    def first_block_for(self, anchor):
         """Returns the first block for anchor."""
         for block in self.blocks:
             if anchor in block.anchors:
                 return block
 
-    def end_block_for(self, anchor):
+    def last_block_for(self, anchor):
         """Returns the first block for anchor."""
         for block in reversed(self.blocks):
             if anchor in block.anchors:
                 return block
 
-    def start_to_end_blocks(self, **kwargs):
+    def start_to_end_time(self, **kwargs):
         """
-        Returns number of blocks from start to end for an anchor, or the max of all anchors.
+        Returns timedelta object from start block to end block
+        for a specific anchor, or the max of all anchors.
 
         kwargs:
             anchors = a list of Anchor() objects
         """
         anchors = kwargs.get('anchors', self.available_anchors)
-        blocks_length_max = 0
+        time_max = timedelta(milliseconds=1)
         
         for anchor in anchors:
-            start_block = self.start_block_for(anchor)
+            start_block = self.first_block_for(anchor)
+            end_block = self.last_block_for(anchor)
             if start_block:
-                blocks_length = self.end_block_for(anchor).hour - start_block.hour
-                blocks_length_max = max(blocks_length, blocks_length_max)
+                time = end_block.start + end_block.length - start_block.start
+                time_max = max(time, time_max)
         
-        return blocks_length_max
-
-
-class Block(object):
-    def __init__(self, hour, **kwargs):
-        # Require kwargs
-        # self.name
-        self.hour = hour  # upgrade to datetime and timedelta length
-        
-        # Default 2 anchors per block
-        self.num_anchors = kwargs.get('num_anchors', ANCHORS_PER_BLOCK_DEFAULT)
-
-        # Default allow any anchor
-        self.available_anchors = kwargs.get('available_anchors', ANCHORS_FULLTIME)
-
-        # Optionally set a list of specific anchors
-        self.anchors = set(kwargs.get('anchors', []))
-        if len(self.anchors) > self.num_anchors:
-            raise
-
-    def __repr__(self):
-        if self.anchors:
-            anchors = self.anchors
-        else:
-            anchors = 'Empty'
-        return f'Block {self.hour}, {self.num_anchors} anchors: {anchors}'
-
-    @property
-    def full(self):
-        if len(self.anchors) > self.num_anchors:
-            raise
-        return len(self.anchors) == self.num_anchors
-    
-
-    def random_fill(self):
-        """Randomly fills block with matching anchors."""
-        while not self.full:
-            self.anchors.add(
-                self.available_anchors[ randint(0, len(self.available_anchors)-1) ]
-            )
-        return True
+        return time_max

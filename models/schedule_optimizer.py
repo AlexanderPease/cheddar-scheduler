@@ -1,8 +1,9 @@
 from copy import deepcopy
+
 from constants import (
     WEIGHT_CONSECUTIVE_BLOCKS, 
     WEIGHT_NUMBER_BLOCKS, 
-    WEIGHT_START_TO_END_BLOCKS, 
+    WEIGHT_START_TO_END_TIME, 
     WEIGHT_STARTING_TIME, 
     PENALIZE_LATER_THAN,
     MAX_ITERATIONS_DEFAULT
@@ -50,12 +51,12 @@ class ScheduleOptimizer(object):
             for anchor in schedule.available_anchors:
                 value += schedule.number_blocks(anchors=[anchor]) * WEIGHT_NUMBER_BLOCKS
                 value += schedule.consecutive_blocks(anchors=[anchor]) * WEIGHT_CONSECUTIVE_BLOCKS
-                value += schedule.start_to_end_blocks(anchors=[anchor]) * WEIGHT_START_TO_END_BLOCKS
+                value += schedule.start_to_end_time(anchors=[anchor]).seconds * WEIGHT_START_TO_END_TIME
 
                 # Weight before noon start time for all anchors
-                start_block = schedule.start_block_for(anchor)
-                if start_block and start_block.hour > PENALIZE_LATER_THAN:
-                    value += (start_block.hour - PENALIZE_LATER_THAN) * WEIGHT_STARTING_TIME
+                first_block = schedule.first_block_for(anchor)
+                if first_block and first_block.start.hour > PENALIZE_LATER_THAN:
+                    value += (first_block.start.hour - PENALIZE_LATER_THAN) * WEIGHT_STARTING_TIME
 
             schedule.value = value
 
