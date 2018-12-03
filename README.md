@@ -1,4 +1,4 @@
-A generalizable scheduling algorithm. Takes a brute force iteration approach and then determines ideal schedule via value-weightd optimizations.
+A generalizable scheduling algorithm. Takes a brute force iteration approach and then determines ideal schedule via value-weighted optimizations.
 
 Implemented for scheduling Cheddar's on-screen talent.
 
